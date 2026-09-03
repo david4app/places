@@ -1,0 +1,208 @@
+import type { Listing } from '../types.js';
+
+export const listings: Listing[] = [
+  {
+    id: '1',
+    title: 'Cliffside cabin with ocean views',
+    location: 'Big Sur, California',
+    price: 245,
+    rating: 4.92,
+    images: [
+      'https://picsum.photos/seed/bigsur1/900/600',
+      'https://picsum.photos/seed/bigsur2/900/600',
+      'https://picsum.photos/seed/bigsur3/900/600',
+    ],
+    description:
+      'A calm, characterful cabin perched above the Pacific, with floor-to-ceiling windows, a wood-burning stove, and a private deck for watching the sunset.',
+    amenities: ['Ocean view', 'Wifi', 'Free parking', 'Wood stove', 'Kitchen'],
+    maxGuests: 4,
+    host: { name: 'Marina', avatar: 'https://picsum.photos/seed/host1/100/100' },
+  },
+  {
+    id: '2',
+    title: 'Sunlit loft in the old town',
+    location: 'Lisbon, Portugal',
+    price: 138,
+    rating: 4.86,
+    images: [
+      'https://picsum.photos/seed/lisbon1/900/600',
+      'https://picsum.photos/seed/lisbon2/900/600',
+      'https://picsum.photos/seed/lisbon3/900/600',
+    ],
+    description:
+      'Exposed beams, tall windows, and a sunny terrace overlooking the rooftops of Alfama. Steps away from cafes, miradouros, and the tram line.',
+    amenities: ['Terrace', 'Wifi', 'Air conditioning', 'Washer', 'Coffee maker'],
+    maxGuests: 3,
+    host: { name: 'Joao', avatar: 'https://picsum.photos/seed/host2/100/100' },
+  },
+  {
+    id: '3',
+    title: 'Modern A-frame in the pines',
+    location: 'Lake Tahoe, Nevada',
+    price: 210,
+    rating: 4.95,
+    images: [
+      'https://picsum.photos/seed/tahoe1/900/600',
+      'https://picsum.photos/seed/tahoe2/900/600',
+      'https://picsum.photos/seed/tahoe3/900/600',
+    ],
+    description:
+      'A minimalist A-frame retreat surrounded by pines, with a wood-fired hot tub, floor-to-ceiling fireplace, and easy access to the slopes and the lake.',
+    amenities: ['Hot tub', 'Fireplace', 'Wifi', 'Free parking', 'Ski storage'],
+    maxGuests: 6,
+    host: { name: 'Casey', avatar: 'https://picsum.photos/seed/host3/100/100' },
+  },
+  {
+    id: '4',
+    title: 'Whitewashed villa above the sea',
+    location: 'Oia, Greece',
+    price: 320,
+    rating: 4.98,
+    images: [
+      'https://picsum.photos/seed/oia1/900/600',
+      'https://picsum.photos/seed/oia2/900/600',
+      'https://picsum.photos/seed/oia3/900/600',
+    ],
+    description:
+      'Carved into the caldera cliffside, this villa has a private plunge pool, uninterrupted sunset views, and a courtyard shaded by bougainvillea.',
+    amenities: ['Private pool', 'Sea view', 'Wifi', 'Breakfast included', 'Air conditioning'],
+    maxGuests: 4,
+    host: { name: 'Eleni', avatar: 'https://picsum.photos/seed/host4/100/100' },
+  },
+  {
+    id: '5',
+    title: 'Converted barn on a working farm',
+    location: 'Cotswolds, England',
+    price: 165,
+    rating: 4.89,
+    images: [
+      'https://picsum.photos/seed/cotswolds1/900/600',
+      'https://picsum.photos/seed/cotswolds2/900/600',
+      'https://picsum.photos/seed/cotswolds3/900/600',
+    ],
+    description:
+      'Original oak beams, a wood-fired range, and views over rolling pastures. Fresh eggs from the farm are left at your door each morning.',
+    amenities: ['Countryside view', 'Wifi', 'Free parking', 'Fireplace', 'Garden'],
+    maxGuests: 5,
+    host: { name: 'Oliver', avatar: 'https://picsum.photos/seed/host5/100/100' },
+  },
+  {
+    id: '6',
+    title: 'Bamboo treehouse above the jungle',
+    location: 'Ubud, Bali',
+    price: 98,
+    rating: 4.9,
+    images: [
+      'https://picsum.photos/seed/ubud1/900/600',
+      'https://picsum.photos/seed/ubud2/900/600',
+      'https://picsum.photos/seed/ubud3/900/600',
+    ],
+    description:
+      'An open-air bamboo treehouse suspended above the rice terraces, with a plunge pool, outdoor bathtub, and the sound of the river below.',
+    amenities: ['Plunge pool', 'Jungle view', 'Wifi', 'Breakfast included', 'Yoga deck'],
+    maxGuests: 2,
+    host: { name: 'Wayan', avatar: 'https://picsum.photos/seed/host6/100/100' },
+  },
+  {
+    id: '7',
+    title: 'Industrial loft near the harbor',
+    location: 'Rotterdam, Netherlands',
+    price: 154,
+    rating: 4.78,
+    images: [
+      'https://picsum.photos/seed/rotterdam1/900/600',
+      'https://picsum.photos/seed/rotterdam2/900/600',
+      'https://picsum.photos/seed/rotterdam3/900/600',
+    ],
+    description:
+      'A converted warehouse loft with exposed brick, tall industrial windows, and a rooftop deck looking out over the harbor cranes and passing ships.',
+    amenities: ['City view', 'Wifi', 'Elevator', 'Washer', 'Workspace'],
+    maxGuests: 4,
+    host: { name: 'Sanne', avatar: 'https://picsum.photos/seed/host7/100/100' },
+  },
+  {
+    id: '8',
+    title: 'Desert dome under the stars',
+    location: 'Joshua Tree, California',
+    price: 189,
+    rating: 4.94,
+    images: [
+      'https://picsum.photos/seed/joshuatree1/900/600',
+      'https://picsum.photos/seed/joshuatree2/900/600',
+      'https://picsum.photos/seed/joshuatree3/900/600',
+    ],
+    description:
+      'A geodesic dome with a retractable skylight over the bed for stargazing, set among boulders and Joshua trees minutes from the national park.',
+    amenities: ['Stargazing deck', 'Fire pit', 'Wifi', 'Free parking', 'Outdoor shower'],
+    maxGuests: 2,
+    host: { name: 'Devon', avatar: 'https://picsum.photos/seed/host8/100/100' },
+  },
+  {
+    id: '9',
+    title: 'Canal house with a private garden',
+    location: 'Amsterdam, Netherlands',
+    price: 275,
+    rating: 4.91,
+    images: [
+      'https://picsum.photos/seed/amsterdam1/900/600',
+      'https://picsum.photos/seed/amsterdam2/900/600',
+      'https://picsum.photos/seed/amsterdam3/900/600',
+    ],
+    description:
+      'A narrow 17th-century canal house with steep stairs, tall windows overlooking the water, and a hidden garden courtyard out back.',
+    amenities: ['Garden', 'Canal view', 'Wifi', 'Kitchen', 'Bicycles included'],
+    maxGuests: 5,
+    host: { name: 'Fenna', avatar: 'https://picsum.photos/seed/host9/100/100' },
+  },
+  {
+    id: '10',
+    title: 'Traditional ryokan with an onsen bath',
+    location: 'Hakone, Japan',
+    price: 310,
+    rating: 4.97,
+    images: [
+      'https://picsum.photos/seed/hakone1/900/600',
+      'https://picsum.photos/seed/hakone2/900/600',
+      'https://picsum.photos/seed/hakone3/900/600',
+    ],
+    description:
+      'Tatami floors, sliding shoji doors, and a private outdoor onsen bath with views of the surrounding pines and, on clear days, Mount Fuji.',
+    amenities: ['Private onsen', 'Tatami rooms', 'Wifi', 'Breakfast included', 'Yukata provided'],
+    maxGuests: 3,
+    host: { name: 'Haruto', avatar: 'https://picsum.photos/seed/host10/100/100' },
+  },
+  {
+    id: '11',
+    title: 'Colorful casita in the historic center',
+    location: 'Oaxaca, Mexico',
+    price: 112,
+    rating: 4.87,
+    images: [
+      'https://picsum.photos/seed/oaxaca1/900/600',
+      'https://picsum.photos/seed/oaxaca2/900/600',
+      'https://picsum.photos/seed/oaxaca3/900/600',
+    ],
+    description:
+      'A hand-painted casita with a private courtyard, hammock, and rooftop terrace, a short walk from the markets and mezcalerias of the historic center.',
+    amenities: ['Rooftop terrace', 'Hammock', 'Wifi', 'Air conditioning', 'Kitchen'],
+    maxGuests: 4,
+    host: { name: 'Ximena', avatar: 'https://picsum.photos/seed/host11/100/100' },
+  },
+  {
+    id: '12',
+    title: 'Fjord-side cabin with a sauna',
+    location: 'Geiranger, Norway',
+    price: 228,
+    rating: 4.93,
+    images: [
+      'https://picsum.photos/seed/geiranger1/900/600',
+      'https://picsum.photos/seed/geiranger2/900/600',
+      'https://picsum.photos/seed/geiranger3/900/600',
+    ],
+    description:
+      'A timber cabin perched above the fjord with a wood-fired sauna, floor-to-ceiling windows, and a private dock for morning swims.',
+    amenities: ['Private sauna', 'Fjord view', 'Wifi', 'Fireplace', 'Private dock'],
+    maxGuests: 6,
+    host: { name: 'Ingrid', avatar: 'https://picsum.photos/seed/host12/100/100' },
+  },
+];

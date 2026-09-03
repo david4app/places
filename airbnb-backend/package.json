@@ -1,0 +1,27 @@
+{
+  "name": "airbnb-backend",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "db:seed": "tsx src/seed.ts",
+    "db:seed:users": "tsx src/seed-users.ts",
+    "db:start": "powershell -ExecutionPolicy Bypass -File scripts/db-start.ps1",
+    "db:stop": "powershell -ExecutionPolicy Bypass -File scripts/db-stop.ps1"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
+    "express": "^4.19.2",
+    "mysql2": "^3.24.3"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.12.7",
+    "tsx": "^4.7.2",
+    "typescript": "^5.4.5"
+  }
+}

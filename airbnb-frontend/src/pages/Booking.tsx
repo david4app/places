@@ -4,6 +4,7 @@ import { differenceInCalendarDays } from 'date-fns';
 import { Button } from '../components/UI/Button';
 import { Input } from '../components/UI/Input';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { createBooking, getListing, getListingAvailability } from '../api/client';
 import type { AvailabilityRange, Listing } from '../types';
 
@@ -13,6 +14,7 @@ export function Booking() {
   const [blockedRanges, setBlockedRanges] = useState<AvailabilityRange[]>([]);
   const navigate = useNavigate();
   const { token } = useAuth();
+  const { showToast } = useToast();
 
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
@@ -76,10 +78,12 @@ export function Booking() {
     setSubmitting(true);
     const payload = { listingId: listing.id, checkIn, checkOut, guests };
     try {
-      await createBooking(payload, token);
-      navigate('/profile');
+      const booking = await createBooking(payload, token);
+      navigate(`/booking/${booking.id}/pay`);
     } catch (bookingError) {
-      setError(bookingError instanceof Error ? bookingError.message : 'Failed to create booking.');
+      const message = bookingError instanceof Error ? bookingError.message : 'Failed to create booking.';
+      setError(message);
+      showToast(message, 'error');
     } finally {
       setSubmitting(false);
     }

@@ -8,7 +8,10 @@ export type Listing = {
   description: string;
   amenities: string[];
   maxGuests: number;
-  host: { name: string; avatar: string };
+  lat: number | null;
+  lng: number | null;
+  createdAt: string;
+  host: { name: string; avatar: string; verified: boolean; responseTime: string };
 };
 
 export type BookingRequest = {
@@ -19,6 +22,7 @@ export type BookingRequest = {
 };
 
 export type BookingStatus = 'confirmed' | 'cancelled';
+export type PaymentStatus = 'unpaid' | 'pending' | 'paid' | 'failed';
 
 export type BookingRecord = BookingRequest & {
   id: string;
@@ -27,6 +31,7 @@ export type BookingRecord = BookingRequest & {
   createdAt: string;
   status: BookingStatus;
   userId: string | null;
+  paymentStatus: PaymentStatus;
 };
 
 export type BookingWithListing = BookingRecord & {
@@ -67,6 +72,9 @@ export type Review = {
 export type AuthUser = {
   id: string;
   name: string;
+  surname: string | null;
+  phone: string | null;
   email: string;
   avatar: string;
+  emailVerified: boolean;
 };

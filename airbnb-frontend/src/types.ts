@@ -8,10 +8,27 @@ export type Listing = {
   description: string;
   amenities: string[];
   maxGuests: number;
-  host: { name: string; avatar: string };
+  lat: number | null;
+  lng: number | null;
+  createdAt: string;
+  host: { name: string; avatar: string; verified: boolean; responseTime: string };
 };
 
-export type User = { id: string; name: string; email: string; avatar: string };
+export type User = {
+  id: string;
+  name: string;
+  surname: string | null;
+  phone: string | null;
+  email: string;
+  avatar: string;
+  emailVerified: boolean;
+};
+
+export type UpdateProfileRequest = {
+  name: string;
+  surname: string;
+  phone: string;
+};
 
 export type AuthResponse = { token: string; user: User };
 
@@ -25,6 +42,18 @@ export type CreateListingRequest = {
   images: string[];
 };
 
+export type HostSummary = {
+  totalListings: number;
+  totalBookings: number;
+  totalRevenue: number;
+};
+
+export type LocationSuggestion = {
+  label: string;
+  lat: number;
+  lng: number;
+};
+
 export type BookingRequest = {
   listingId: string;
   checkIn: string;
@@ -33,6 +62,7 @@ export type BookingRequest = {
 };
 
 export type BookingStatus = 'confirmed' | 'cancelled';
+export type PaymentStatus = 'unpaid' | 'pending' | 'paid' | 'failed';
 
 export type BookingRecord = BookingRequest & {
   id: string;
@@ -41,6 +71,7 @@ export type BookingRecord = BookingRequest & {
   createdAt: string;
   status: BookingStatus;
   userId: string | null;
+  paymentStatus: PaymentStatus;
 };
 
 export type TripRecord = BookingRecord & {

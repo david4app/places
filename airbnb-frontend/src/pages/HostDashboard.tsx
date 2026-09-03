@@ -1,16 +1,19 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { deleteListing, getListingBookings, getMyListings } from '../api/client';
-import type { BookingRecord, Listing } from '../types';
+import { deleteListing, getHostSummary, getListingBookings, getMyListings } from '../api/client';
+import { ConfirmDialog } from '../components/UI/ConfirmDialog';
+import type { BookingRecord, HostSummary, Listing } from '../types';
 
 export function HostDashboard() {
   const { token } = useAuth();
   const [listings, setListings] = useState<Listing[]>([]);
+  const [summary, setSummary] = useState<HostSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [bookingsByListing, setBookingsByListing] = useState<Record<string, BookingRecord[]>>({});
   const [error, setError] = useState('');
+  const [listingPendingDelete, setListingPendingDelete] = useState<Listing | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -18,6 +21,9 @@ export function HostDashboard() {
       .then(setListings)
       .catch(() => setError('Could not load your listings.'))
       .finally(() => setLoading(false));
+    getHostSummary(token)
+      .then(setSummary)
+      .catch(() => setSummary(null));
   }, [token]);
 
   const handleToggleBookings = async (listingId: string) => {
@@ -35,12 +41,13 @@ export function HostDashboard() {
     }
   };
 
-  const handleDelete = async (listingId: string) => {
-    if (!token) return;
-    if (!window.confirm('Delete this listing? This cannot be undone.')) return;
+  const handleDelete = async () => {
+    const listing = listingPendingDelete;
+    if (!token || !listing) return;
+    setListingPendingDelete(null);
     try {
-      await deleteListing(listingId, token);
-      setListings((current) => current.filter((listing) => listing.id !== listingId));
+      await deleteListing(listing.id, token);
+      setListings((current) => current.filter((item) => item.id !== listing.id));
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError.message : 'Failed to delete listing.');
     }
@@ -57,6 +64,23 @@ export function HostDashboard() {
         </div>
 
         {error && <p className="mb-6 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+
+        {summary && (
+          <div className="mb-8 grid gap-4 sm:grid-cols-3">
+            <div className="rounded-2xl border border-gray-200 p-6">
+              <p className="text-sm text-gray-600">Total revenue</p>
+              <p className="text-2xl font-bold text-gray-900">${summary.totalRevenue.toLocaleString()}</p>
+            </div>
+            <div className="rounded-2xl border border-gray-200 p-6">
+              <p className="text-sm text-gray-600">Total bookings</p>
+              <p className="text-2xl font-bold text-gray-900">{summary.totalBookings}</p>
+            </div>
+            <div className="rounded-2xl border border-gray-200 p-6">
+              <p className="text-sm text-gray-600">Active listings</p>
+              <p className="text-2xl font-bold text-gray-900">{summary.totalListings}</p>
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <p className="text-gray-600">Loading…</p>
@@ -81,6 +105,12 @@ export function HostDashboard() {
                     <p className="text-sm text-gray-500">${listing.price} / night · Up to {listing.maxGuests} guests</p>
                   </div>
                   <div className="flex shrink-0 flex-col gap-2">
+                    <Link
+                      to={`/host/listings/${listing.id}/edit`}
+                      className="rounded-lg border border-gray-300 px-3 py-2 text-center text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      Edit
+                    </Link>
                     <button
                       onClick={() => handleToggleBookings(listing.id)}
                       className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
@@ -88,7 +118,7 @@ export function HostDashboard() {
                       {expandedId === listing.id ? 'Hide bookings' : 'View bookings'}
                     </button>
                     <button
-                      onClick={() => handleDelete(listing.id)}
+                      onClick={() => setListingPendingDelete(listing)}
                       className="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
                     >
                       Delete
@@ -129,6 +159,17 @@ export function HostDashboard() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={listingPendingDelete !== null}
+        title="Delete this listing?"
+        message="This will permanently remove the listing along with its bookings, favorites, and reviews."
+        confirmLabel="Delete"
+        cancelLabel="Keep listing"
+        destructive
+        onConfirm={handleDelete}
+        onCancel={() => setListingPendingDelete(null)}
+      />
     </main>
   );
 }

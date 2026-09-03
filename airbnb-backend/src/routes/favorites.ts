@@ -18,6 +18,11 @@ type ListingRow = RowDataPacket & {
   max_guests: number;
   host_name: string;
   host_avatar: string;
+  host_verified: number;
+  host_response_time: string;
+  lat: string | null;
+  lng: string | null;
+  created_at: string;
 };
 
 function toListing(row: ListingRow): Listing {
@@ -31,7 +36,15 @@ function toListing(row: ListingRow): Listing {
     description: row.description,
     amenities: typeof row.amenities === 'string' ? JSON.parse(row.amenities) : row.amenities,
     maxGuests: row.max_guests,
-    host: { name: row.host_name, avatar: row.host_avatar },
+    lat: row.lat !== null && row.lat !== undefined ? Number(row.lat) : null,
+    lng: row.lng !== null && row.lng !== undefined ? Number(row.lng) : null,
+    createdAt: new Date(row.created_at).toISOString(),
+    host: {
+      name: row.host_name,
+      avatar: row.host_avatar,
+      verified: Boolean(row.host_verified),
+      responseTime: row.host_response_time,
+    },
   };
 }
 

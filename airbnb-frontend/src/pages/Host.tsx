@@ -2,6 +2,8 @@ import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/UI/Button';
 import { Input } from '../components/UI/Input';
+import { ImageListEditor } from '../components/UI/ImageListEditor';
+import { LocationAutocomplete } from '../components/UI/LocationAutocomplete';
 import { useAuth } from '../context/AuthContext';
 import { createListing } from '../api/client';
 
@@ -15,7 +17,7 @@ export function Host() {
   const [maxGuests, setMaxGuests] = useState('2');
   const [description, setDescription] = useState('');
   const [amenities, setAmenities] = useState('');
-  const [images, setImages] = useState('');
+  const [images, setImages] = useState<string[]>([]);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -28,7 +30,11 @@ export function Host() {
       return;
     }
 
-    const imageList = images.split('\n').map((line) => line.trim()).filter(Boolean);
+    if (images.length === 0) {
+      setError('Please add at least one photo.');
+      return;
+    }
+
     const amenityList = amenities.split(',').map((item) => item.trim()).filter(Boolean);
 
     setSubmitting(true);
@@ -41,7 +47,7 @@ export function Host() {
           price: Number(price),
           maxGuests: Number(maxGuests),
           amenities: amenityList,
-          images: imageList,
+          images,
         },
         token,
       );
@@ -67,7 +73,9 @@ export function Host() {
 
           <label className="block text-sm font-medium text-gray-700">
             Location
-            <Input className="mt-2 rounded-lg" required value={location} onChange={(event) => setLocation(event.target.value)} placeholder="Big Sur, California" />
+            <div className="mt-2">
+              <LocationAutocomplete value={location} onChange={setLocation} placeholder="Big Sur, California" required />
+            </div>
           </label>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -99,15 +107,10 @@ export function Host() {
           </label>
 
           <label className="block text-sm font-medium text-gray-700">
-            Image URLs (one per line)
-            <textarea
-              className="mt-2 w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              rows={3}
-              required
-              value={images}
-              onChange={(event) => setImages(event.target.value)}
-              placeholder="https://example.com/photo1.jpg"
-            />
+            Photos
+            <div className="mt-2">
+              <ImageListEditor images={images} onChange={setImages} />
+            </div>
           </label>
 
           {error && (

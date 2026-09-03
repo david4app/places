@@ -9,6 +9,7 @@ pnpm-debug.log*
 dist/
 .vite/
 *.local
+.env
 
 # OS
 .DS_Store

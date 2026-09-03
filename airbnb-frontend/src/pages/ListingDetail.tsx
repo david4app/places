@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useParams, Link, Navigate } from 'react-router-dom';
-import { FaHeart, FaRegHeart } from 'react-icons/fa';
+import { FaHeart, FaRegHeart, FaCheckCircle } from 'react-icons/fa';
 import { getListing, getReviews, addReview, getListingAvailability } from '../api/client';
 import { Button } from '../components/UI/Button';
 import { RatingStars } from '../components/UI/RatingStars';
@@ -8,6 +8,8 @@ import { ImageCarousel } from '../components/Carousel/ImageCarousel';
 import { AvailabilityCalendar } from '../components/Calendar/AvailabilityCalendar';
 import { useAuth } from '../context/AuthContext';
 import { useFavorites } from '../context/FavoritesContext';
+import { useToast } from '../context/ToastContext';
+import { recordRecentlyViewed } from '../utils/recentlyViewed';
 import type { AvailabilityRange, Listing, Review } from '../types';
 
 export function ListingDetail() {
@@ -17,15 +19,18 @@ export function ListingDetail() {
   const [blockedRanges, setBlockedRanges] = useState<AvailabilityRange[]>([]);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
-  const [reviewError, setReviewError] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
   const { user, token } = useAuth();
   const { isFavorite, toggleFavorite } = useFavorites();
+  const { showToast } = useToast();
 
   useEffect(() => {
     if (!id) return;
     getListing(id)
-      .then(setListing)
+      .then((found) => {
+        setListing(found);
+        if (found) recordRecentlyViewed(found.id);
+      })
       .catch(() => setListing(null));
     getReviews(id)
       .then(setReviews)
@@ -38,7 +43,6 @@ export function ListingDetail() {
   const handleReviewSubmit = async (event: FormEvent) => {
     event.preventDefault();
     if (!id || !token) return;
-    setReviewError('');
     setSubmittingReview(true);
     try {
       await addReview(id, { rating: reviewRating, comment: reviewComment }, token);
@@ -46,8 +50,9 @@ export function ListingDetail() {
       setReviewRating(5);
       const updated = await getReviews(id);
       setReviews(updated);
+      showToast('Review submitted. Thanks!');
     } catch (submitError) {
-      setReviewError(submitError instanceof Error ? submitError.message : 'Failed to submit review.');
+      showToast(submitError instanceof Error ? submitError.message : 'Failed to submit review.', 'error');
     } finally {
       setSubmittingReview(false);
     }
@@ -112,8 +117,15 @@ export function ListingDetail() {
                 alt={listing.host.name} 
               />
               <div>
-                <p className="font-semibold text-gray-900">Hosted by {listing.host.name}</p>
-                <p className="text-sm text-gray-600">Verified host · {listing.maxGuests} guests max</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-semibold text-gray-900">Hosted by {listing.host.name}</p>
+                  {listing.host.verified && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                      <FaCheckCircle /> Verified
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-gray-600">Responds {listing.host.responseTime.toLowerCase()} · {listing.maxGuests} guests max</p>
               </div>
             </div>
 
@@ -193,7 +205,6 @@ export function ListingDetail() {
                       placeholder="Share your experience..."
                     />
                   </label>
-                  {reviewError && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{reviewError}</p>}
                   <Button type="submit" disabled={submittingReview}>
                     {submittingReview ? 'Submitting…' : 'Submit review'}
                   </Button>

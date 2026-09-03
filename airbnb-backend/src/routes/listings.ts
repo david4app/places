@@ -3,6 +3,8 @@ import { randomUUID } from 'node:crypto';
 import type { RowDataPacket } from 'mysql2';
 import { pool } from '../db.js';
 import { getUserIdFromRequest } from '../session.js';
+import { geocodeLocation } from '../geocode.js';
+import { toMysqlDatetime } from '../utils.js';
 import type { BookingRecord, Listing, Review } from '../types.js';
 
 const router = Router();
@@ -20,6 +22,11 @@ type ListingRow = RowDataPacket & {
   host_name: string;
   host_avatar: string;
   host_user_id: string | null;
+  host_verified: number;
+  host_response_time: string;
+  lat: string | null;
+  lng: string | null;
+  created_at: string;
 };
 
 function toListing(row: ListingRow): Listing {
@@ -33,7 +40,15 @@ function toListing(row: ListingRow): Listing {
     description: row.description,
     amenities: typeof row.amenities === 'string' ? JSON.parse(row.amenities) : row.amenities,
     maxGuests: row.max_guests,
-    host: { name: row.host_name, avatar: row.host_avatar },
+    lat: row.lat !== null && row.lat !== undefined ? Number(row.lat) : null,
+    lng: row.lng !== null && row.lng !== undefined ? Number(row.lng) : null,
+    createdAt: new Date(row.created_at).toISOString(),
+    host: {
+      name: row.host_name,
+      avatar: row.host_avatar,
+      verified: Boolean(row.host_verified),
+      responseTime: row.host_response_time,
+    },
   };
 }
 
@@ -49,6 +64,31 @@ router.get('/mine', async (req, res) => {
   }
   const [rows] = await pool.query<ListingRow[]>('SELECT * FROM listings WHERE host_user_id = ?', [userId]);
   res.json(rows.map(toListing));
+});
+
+router.get('/mine/summary', async (req, res) => {
+  const userId = getUserIdFromRequest(req);
+  if (!userId) {
+    return res.status(401).json({ message: 'You must be logged in to view your earnings.' });
+  }
+
+  type SummaryRow = RowDataPacket & { listing_count: number; booking_count: number; total_revenue: string | null };
+  const [rows] = await pool.query<SummaryRow[]>(
+    `SELECT COUNT(DISTINCT listings.id) AS listing_count,
+            COUNT(bookings.id) AS booking_count,
+            COALESCE(SUM(bookings.total_price), 0) AS total_revenue
+     FROM listings
+     LEFT JOIN bookings ON bookings.listing_id = listings.id AND bookings.status != 'cancelled'
+     WHERE listings.host_user_id = ?`,
+    [userId],
+  );
+  const summary = rows[0];
+
+  res.json({
+    totalListings: summary?.listing_count ?? 0,
+    totalBookings: summary?.booking_count ?? 0,
+    totalRevenue: Number(summary?.total_revenue ?? 0),
+  });
 });
 
 router.get('/:id', async (req, res) => {
@@ -101,6 +141,7 @@ router.get('/:id/bookings', async (req, res) => {
     nights: number;
     total_price: string;
     status: string;
+    payment_status: string;
     created_at: string;
   };
 
@@ -119,6 +160,7 @@ router.get('/:id/bookings', async (req, res) => {
     nights: row.nights,
     totalPrice: Number(row.total_price),
     status: row.status === 'cancelled' ? 'cancelled' : 'confirmed',
+    paymentStatus: ['pending', 'paid', 'failed'].includes(row.payment_status) ? (row.payment_status as BookingRecord['paymentStatus']) : 'unpaid',
     createdAt: new Date(row.created_at).toISOString(),
   }));
 
@@ -194,6 +236,84 @@ router.post('/:id/reviews', async (req, res) => {
   res.status(201).json({ message: 'Review submitted.' });
 });
 
+router.put('/:id', async (req, res) => {
+  const userId = getUserIdFromRequest(req);
+  if (!userId) {
+    return res.status(401).json({ message: 'You must be logged in to edit a listing.' });
+  }
+
+  const [rows] = await pool.query<ListingRow[]>('SELECT host_user_id, location FROM listings WHERE id = ?', [req.params.id]);
+  const existing = rows[0];
+  if (!existing) {
+    return res.status(404).json({ message: 'Listing not found' });
+  }
+  if (existing.host_user_id !== userId) {
+    return res.status(403).json({ message: 'You can only edit your own listings.' });
+  }
+
+  const { title, location, price, description, amenities, maxGuests, images } = req.body ?? {};
+
+  if (!String(title ?? '').trim() || !String(location ?? '').trim() || !String(description ?? '').trim()) {
+    return res.status(400).json({ message: 'Title, location, and description are required.' });
+  }
+
+  const numericPrice = Number(price);
+  if (!Number.isFinite(numericPrice) || numericPrice <= 0) {
+    return res.status(400).json({ message: 'Price must be a positive number.' });
+  }
+
+  const numericMaxGuests = Number(maxGuests);
+  if (!Number.isInteger(numericMaxGuests) || numericMaxGuests < 1) {
+    return res.status(400).json({ message: 'Max guests must be a positive whole number.' });
+  }
+
+  const imageList = Array.isArray(images) ? images.filter((url) => typeof url === 'string' && url.trim()) : [];
+  if (imageList.length === 0) {
+    return res.status(400).json({ message: 'Please provide at least one image URL.' });
+  }
+
+  const amenityList = Array.isArray(amenities) ? amenities.filter((item) => typeof item === 'string' && item.trim()) : [];
+
+  const trimmedLocation = String(location).trim();
+  const coordinates = trimmedLocation !== existing.location ? await geocodeLocation(trimmedLocation) : null;
+
+  await pool.query(
+    coordinates
+      ? `UPDATE listings
+         SET title = ?, location = ?, price = ?, description = ?, amenities = ?, max_guests = ?, images = ?, lat = ?, lng = ?
+         WHERE id = ?`
+      : `UPDATE listings
+         SET title = ?, location = ?, price = ?, description = ?, amenities = ?, max_guests = ?, images = ?
+         WHERE id = ?`,
+    coordinates
+      ? [
+          String(title).trim(),
+          trimmedLocation,
+          numericPrice,
+          String(description).trim(),
+          JSON.stringify(amenityList),
+          numericMaxGuests,
+          JSON.stringify(imageList),
+          coordinates.lat,
+          coordinates.lng,
+          req.params.id,
+        ]
+      : [
+          String(title).trim(),
+          trimmedLocation,
+          numericPrice,
+          String(description).trim(),
+          JSON.stringify(amenityList),
+          numericMaxGuests,
+          JSON.stringify(imageList),
+          req.params.id,
+        ],
+  );
+
+  const [updatedRows] = await pool.query<ListingRow[]>('SELECT * FROM listings WHERE id = ?', [req.params.id]);
+  res.json(toListing(updatedRows[0]));
+});
+
 router.delete('/:id', async (req, res) => {
   const userId = getUserIdFromRequest(req);
   if (!userId) {
@@ -253,22 +373,28 @@ router.post('/', async (req, res) => {
 
   const amenityList = Array.isArray(amenities) ? amenities.filter((item) => typeof item === 'string' && item.trim()) : [];
 
+  const trimmedLocation = String(location).trim();
+  const coordinates = await geocodeLocation(trimmedLocation);
+
   const listing: Listing = {
     id: randomUUID(),
     title: String(title).trim(),
-    location: String(location).trim(),
+    location: trimmedLocation,
     price: numericPrice,
     rating: 5,
     images: imageList,
     description: String(description).trim(),
     amenities: amenityList,
     maxGuests: numericMaxGuests,
-    host: { name: host.name, avatar: host.avatar },
+    lat: coordinates?.lat ?? null,
+    lng: coordinates?.lng ?? null,
+    createdAt: new Date().toISOString(),
+    host: { name: host.name, avatar: host.avatar, verified: false, responseTime: 'Within a few hours' },
   };
 
   await pool.query(
-    `INSERT INTO listings (id, title, location, price, rating, images, description, amenities, max_guests, host_name, host_avatar, host_user_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO listings (id, title, location, price, rating, images, description, amenities, max_guests, host_name, host_avatar, host_user_id, host_verified, host_response_time, lat, lng, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       listing.id,
       listing.title,
@@ -282,6 +408,11 @@ router.post('/', async (req, res) => {
       listing.host.name,
       listing.host.avatar,
       userId,
+      listing.host.verified ? 1 : 0,
+      listing.host.responseTime,
+      listing.lat,
+      listing.lng,
+      toMysqlDatetime(listing.createdAt),
     ],
   );
 

@@ -1,9 +1,23 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { FaSearch } from 'react-icons/fa';
 import { getListings } from '../api/client';
 import { ListingCard } from '../components/Card/ListingCard';
+import { ListingsMap } from '../components/Map/ListingsMap';
 import { Input } from '../components/UI/Input';
+import { getRecentlyViewedIds } from '../utils/recentlyViewed';
 import type { Listing } from '../types';
+
+const PAGE_SIZE = 8;
+
+type SortOption = 'recommended' | 'price-asc' | 'price-desc' | 'rating' | 'newest';
+
+const sortOptions: { value: SortOption; label: string }[] = [
+  { value: 'recommended', label: 'Recommended' },
+  { value: 'price-asc', label: 'Price: low to high' },
+  { value: 'price-desc', label: 'Price: high to low' },
+  { value: 'rating', label: 'Top rated' },
+  { value: 'newest', label: 'Newest' },
+];
 
 export function Home() {
   const [listings, setListings] = useState<Listing[]>([]);
@@ -15,6 +29,10 @@ export function Home() {
   const [minGuests, setMinGuests] = useState('');
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
+  const [sortBy, setSortBy] = useState<SortOption>('recommended');
+  const [showMap, setShowMap] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     getListings()
@@ -54,6 +72,48 @@ export function Home() {
       return true;
     });
   }, [query, listings, minPrice, maxPrice, minGuests, selectedAmenities]);
+
+  const sorted = useMemo(() => {
+    const list = [...filtered];
+    switch (sortBy) {
+      case 'price-asc':
+        return list.sort((a, b) => a.price - b.price);
+      case 'price-desc':
+        return list.sort((a, b) => b.price - a.price);
+      case 'rating':
+        return list.sort((a, b) => b.rating - a.rating);
+      case 'newest':
+        return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      default:
+        return list;
+    }
+  }, [filtered, sortBy]);
+
+  const recentlyViewed = useMemo(() => {
+    const ids = getRecentlyViewedIds();
+    return ids.map((id) => listings.find((listing) => listing.id === id)).filter((listing): listing is Listing => Boolean(listing));
+  }, [listings]);
+
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [query, minPrice, maxPrice, minGuests, selectedAmenities, sortBy]);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount((current) => Math.min(current + PAGE_SIZE, sorted.length));
+        }
+      },
+      { rootMargin: '400px' },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [sorted.length]);
+
+  const visibleListings = sorted.slice(0, visibleCount);
 
   return (
     <main className="min-h-screen bg-white">
@@ -155,12 +215,50 @@ export function Home() {
         </div>
       </section>
 
+      {/* Recently Viewed */}
+      {recentlyViewed.length > 0 && (
+        <section className="mx-auto max-w-7xl px-4 pt-12 sm:px-6 lg:px-8">
+          <h2 className="mb-6 text-2xl font-bold text-gray-900">Recently viewed</h2>
+          <div className="flex gap-6 overflow-x-auto pb-2">
+            {recentlyViewed.map((listing) => (
+              <div key={listing.id} className="w-64 shrink-0">
+                <ListingCard listing={listing} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Results Section */}
       <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-        <div className="mb-10 flex items-center justify-between">
+        <div className="mb-10 flex flex-wrap items-center justify-between gap-4">
           <div>
             <h2 className="text-3xl font-bold text-gray-900 mb-2">Explore Stays</h2>
-            <p className="text-gray-600">{filtered.length} amazing places to discover</p>
+            <p className="text-gray-600">{sorted.length} amazing places to discover</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+              Sort by
+              <select
+                value={sortBy}
+                onChange={(event) => setSortBy(event.target.value as SortOption)}
+                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              >
+                {sortOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              onClick={() => setShowMap((current) => !current)}
+              className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
+                showMap ? 'border-primary bg-primary text-white' : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              {showMap ? 'Hide map' : 'Show map'}
+            </button>
           </div>
         </div>
 
@@ -172,11 +270,25 @@ export function Home() {
           <div className="flex items-center justify-center py-16">
             <p className="text-xl text-red-600">{error}</p>
           </div>
-        ) : filtered.length > 0 ? (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {filtered.map((listing) => (
-              <ListingCard key={listing.id} listing={listing} />
-            ))}
+        ) : sorted.length > 0 ? (
+          <div className={showMap ? 'grid gap-8 lg:grid-cols-[1fr_420px]' : ''}>
+            <div>
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {visibleListings.map((listing) => (
+                  <ListingCard key={listing.id} listing={listing} />
+                ))}
+              </div>
+              {visibleCount < sorted.length && (
+                <div ref={sentinelRef} className="flex justify-center py-10">
+                  <p className="text-sm text-gray-500">Loading more stays…</p>
+                </div>
+              )}
+            </div>
+            {showMap && (
+              <div className="hidden h-[600px] overflow-hidden rounded-2xl border border-gray-200 lg:sticky lg:top-24 lg:block">
+                <ListingsMap listings={sorted} />
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-16">
@@ -188,3 +300,4 @@ export function Home() {
     </main>
   );
 }
+

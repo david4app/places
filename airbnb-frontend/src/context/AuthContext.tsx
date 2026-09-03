@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
-import { login as loginRequest, logout as logoutRequest, register as registerRequest } from '../api/client';
-import type { User } from '../types';
+import { login as loginRequest, logout as logoutRequest, register as registerRequest, updateProfile as updateProfileRequest } from '../api/client';
+import type { UpdateProfileRequest, User } from '../types';
 
 type AuthContextValue = {
   user: User | null;
@@ -8,6 +8,7 @@ type AuthContextValue = {
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  updateProfile: (payload: UpdateProfileRequest) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -35,8 +36,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('staybnb-session');
     setSession(null);
   };
+  const updateProfile = async (payload: UpdateProfileRequest) => {
+    if (!session?.token) return;
+    const user = await updateProfileRequest(payload, session.token);
+    saveSession({ user, token: session.token });
+  };
 
-  return <AuthContext.Provider value={{ user: session?.user ?? null, token: session?.token ?? null, login, register, logout }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ user: session?.user ?? null, token: session?.token ?? null, login, register, logout, updateProfile }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { RowDataPacket } from 'mysql2';
 import { pool } from '../db.js';
 import { getUserIdFromRequest } from '../session.js';
+import { stripe } from '../stripe.js';
 import type { BookingRecord, BookingWithListing, Message } from '../types.js';
 
 const router = Router();
@@ -19,6 +20,8 @@ type BookingRow = RowDataPacket & {
   nights: number;
   total_price: string;
   status: string;
+  payment_status: string;
+  stripe_payment_intent_id: string | null;
   created_at: string;
 };
 
@@ -52,6 +55,7 @@ function toBooking(row: BookingRow): BookingRecord {
     nights: row.nights,
     totalPrice: Number(row.total_price),
     status: row.status === 'cancelled' ? 'cancelled' : 'confirmed',
+    paymentStatus: ['pending', 'paid', 'failed'].includes(row.payment_status) ? (row.payment_status as BookingRecord['paymentStatus']) : 'unpaid',
     createdAt: new Date(row.created_at).toISOString(),
   };
 }
@@ -204,13 +208,14 @@ router.post('/', async (req, res) => {
     nights,
     totalPrice: nights * Number(listing.price),
     status: 'confirmed',
+    paymentStatus: 'unpaid',
     createdAt: new Date().toISOString(),
   };
 
   await pool.query(
-    `INSERT INTO bookings (id, listing_id, user_id, check_in, check_out, guests, nights, total_price, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [booking.id, booking.listingId, booking.userId, booking.checkIn, booking.checkOut, booking.guests, booking.nights, booking.totalPrice, booking.status],
+    `INSERT INTO bookings (id, listing_id, user_id, check_in, check_out, guests, nights, total_price, status, payment_status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [booking.id, booking.listingId, booking.userId, booking.checkIn, booking.checkOut, booking.guests, booking.nights, booking.totalPrice, booking.status, booking.paymentStatus],
   );
 
   res.status(201).json(booking);
@@ -243,6 +248,84 @@ router.post('/:id/cancel', async (req, res) => {
 
   await pool.query("UPDATE bookings SET status = 'cancelled' WHERE id = ?", [booking.id]);
   res.json(toBooking({ ...booking, status: 'cancelled' }));
+});
+
+router.post('/:id/create-payment-intent', async (req, res) => {
+  if (!stripe) {
+    return res.status(503).json({ message: 'Payments are not configured yet. Set STRIPE_SECRET_KEY on the server.' });
+  }
+
+  const userId = getUserIdFromRequest(req);
+  if (!userId) {
+    return res.status(401).json({ message: 'You must be logged in to pay for a booking.' });
+  }
+
+  const [rows] = await pool.query<BookingRow[]>('SELECT * FROM bookings WHERE id = ?', [req.params.id]);
+  const booking = rows[0];
+  if (!booking) {
+    return res.status(404).json({ message: 'Booking not found' });
+  }
+  if (booking.user_id !== userId) {
+    return res.status(403).json({ message: 'You can only pay for your own bookings.' });
+  }
+  if (booking.status === 'cancelled') {
+    return res.status(409).json({ message: 'This booking has been cancelled.' });
+  }
+  if (booking.payment_status === 'paid') {
+    return res.status(409).json({ message: 'This booking has already been paid.' });
+  }
+
+  const amountInCents = Math.round(Number(booking.total_price) * 100);
+
+  let clientSecret: string | null;
+  if (booking.stripe_payment_intent_id) {
+    const existing = await stripe.paymentIntents.retrieve(booking.stripe_payment_intent_id);
+    clientSecret = existing.status === 'succeeded' ? null : existing.client_secret;
+  } else {
+    const intent = await stripe.paymentIntents.create({
+      amount: amountInCents,
+      currency: 'usd',
+      automatic_payment_methods: { enabled: true },
+      metadata: { bookingId: booking.id },
+    });
+    await pool.query("UPDATE bookings SET stripe_payment_intent_id = ?, payment_status = 'pending' WHERE id = ?", [intent.id, booking.id]);
+    clientSecret = intent.client_secret;
+  }
+
+  if (!clientSecret) {
+    return res.status(409).json({ message: 'This booking has already been paid.' });
+  }
+
+  res.json({ clientSecret });
+});
+
+router.post('/:id/confirm-payment', async (req, res) => {
+  if (!stripe) {
+    return res.status(503).json({ message: 'Payments are not configured yet. Set STRIPE_SECRET_KEY on the server.' });
+  }
+
+  const userId = getUserIdFromRequest(req);
+  if (!userId) {
+    return res.status(401).json({ message: 'You must be logged in to confirm a payment.' });
+  }
+
+  const [rows] = await pool.query<BookingRow[]>('SELECT * FROM bookings WHERE id = ?', [req.params.id]);
+  const booking = rows[0];
+  if (!booking) {
+    return res.status(404).json({ message: 'Booking not found' });
+  }
+  if (booking.user_id !== userId) {
+    return res.status(403).json({ message: 'You can only confirm payment for your own bookings.' });
+  }
+  if (!booking.stripe_payment_intent_id) {
+    return res.status(400).json({ message: 'No payment has been started for this booking.' });
+  }
+
+  const intent = await stripe.paymentIntents.retrieve(booking.stripe_payment_intent_id);
+  const paymentStatus = intent.status === 'succeeded' ? 'paid' : intent.status === 'canceled' ? 'failed' : 'pending';
+
+  await pool.query('UPDATE bookings SET payment_status = ? WHERE id = ?', [paymentStatus, booking.id]);
+  res.json(toBooking({ ...booking, payment_status: paymentStatus }));
 });
 
 router.get('/:id/messages', async (req, res) => {

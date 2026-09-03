@@ -6,10 +6,15 @@ import { Booking } from '../pages/Booking';
 import { Profile } from '../pages/Profile';
 import { Host } from '../pages/Host';
 import { HostDashboard } from '../pages/HostDashboard';
+import { EditListing } from '../pages/EditListing';
 import { Favorites } from '../pages/Favorites';
 import { NotFound } from '../pages/NotFound';
 import { Auth } from '../pages/Auth';
+import { ForgotPassword } from '../pages/ForgotPassword';
+import { ResetPassword } from '../pages/ResetPassword';
+import { VerifyEmail } from '../pages/VerifyEmail';
 import { Messages } from '../pages/Messages';
+import { Payment } from '../pages/Payment';
 import { useAuth } from '../context/AuthContext';
 
 function ProtectedRoute({ children }: { children: JSX.Element }) {
@@ -25,12 +30,17 @@ export default function AppRouter() {
 				<Route path="/" element={<Home />} />
 				<Route path="/login" element={<Auth mode="login" />} />
 				<Route path="/register" element={<Auth mode="register" />} />
+				<Route path="/forgot-password" element={<ForgotPassword />} />
+				<Route path="/reset-password" element={<ResetPassword />} />
+				<Route path="/verify-email" element={<VerifyEmail />} />
 				<Route path="/listing/:id" element={<ListingDetail />} />
 				<Route path="/booking/:id" element={<ProtectedRoute><Booking /></ProtectedRoute>} />
+				<Route path="/booking/:id/pay" element={<ProtectedRoute><Payment /></ProtectedRoute>} />
 				<Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
 				<Route path="/messages/:bookingId" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
 				<Route path="/host" element={<ProtectedRoute><Host /></ProtectedRoute>} />
 				<Route path="/host/dashboard" element={<ProtectedRoute><HostDashboard /></ProtectedRoute>} />
+				<Route path="/host/listings/:id/edit" element={<ProtectedRoute><EditListing /></ProtectedRoute>} />
 				<Route path="/favorites" element={<ProtectedRoute><Favorites /></ProtectedRoute>} />
 				<Route path="/404" element={<NotFound />} />
 				<Route path="*" element={<NotFound />} />
